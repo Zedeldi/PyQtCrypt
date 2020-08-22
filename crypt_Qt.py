@@ -20,12 +20,9 @@ Description:
 TODO
 ----
 Re-write using Qt
- - QFileDialog <--
  - Export helper functions to utils.py, and pass args
  - Tidy classes
    - Merge settings with main class?
-
-Keep empty directories
 
 Add logging, argparse
 
@@ -66,24 +63,32 @@ class SettingsDialog(QDialog):
 		super().__init__()
 		
 		self.key = None
+		self.cryptdir = None
+		self.plaindir = None
 		self.drive_letter = None
 		
-		self.setWindowTitle("PyQt Crypt - Enter password")
+		self.setWindowTitle("PyQt Crypt - Settings")
 		self.resize(300, 100)
 		
 		self.text_pass = QLineEdit(self)
 		self.text_pass.setPlaceholderText("Password (leave blank to generate)")
 		self.text_pass.setEchoMode(QLineEdit.Password)
 		self.button_keyfile = QPushButton("Keyfile", self)
+		self.button_cryptdir = QPushButton("Directory", self)
+		self.button_plaindir = QPushButton("Mountpoint", self)
 		self.button_submit = QPushButton("Submit", self)
 		self.text_pass.returnPressed.connect(self.read_password)
 		self.button_keyfile.clicked.connect(self.read_keyfile)
+		self.button_cryptdir.clicked.connect(self.read_cryptdir)
+		self.button_plaindir.clicked.connect(self.read_plaindir)
 		self.button_submit.clicked.connect(self.return_prefs)
 		
 		self.main_layout = QVBoxLayout()
 		self.opt_layout = QHBoxLayout()
 		
 		self.opt_layout.addWidget(self.button_keyfile)
+		self.opt_layout.addWidget(self.button_cryptdir)
+		self.opt_layout.addWidget(self.button_plaindir)
 		
 		self.main_layout.addWidget(self.text_pass)
 		self.main_layout.addLayout(self.opt_layout)
@@ -113,12 +118,16 @@ class SettingsDialog(QDialog):
 		except OSError: self.key=None
 		self.return_prefs()
 	
+	def read_cryptdir(self): self.cryptdir=get_directory("Select Encrypted Directory")
+	
+	def read_plaindir(self): self.plaindir=get_directory("Select Mountpoint")
+	
 	def set_drive_letter(self):
 		self.drive_letter=self.drive_letter_selector.currentText()
 	
 	def return_prefs(self):
 		self.accept()
-		return {"key": self.key, "drive_letter": self.drive_letter}
+		return {"key": self.key, "cryptdir": self.cryptdir, "plaindir": self.plaindir, "drive_letter": self.drive_letter}
 
 	@staticmethod
 	def get_prefs():
@@ -171,6 +180,8 @@ class PyQtCrypt(QSystemTrayIcon):
 	def set_prefs(self):
 		if (prefs := SettingsDialog.get_prefs()):
 			if prefs["key"]: self.KEY=prefs["key"]
+			if prefs["cryptdir"]: self.CRYPT_DIR=prefs["cryptdir"]
+			if prefs["plaindir"]: self.PLAIN_DIR=prefs["plaindir"]
 			if prefs["drive_letter"]: self.DRIVE_LETTER=prefs["drive_letter"]
 	
 	def toggle_mount(self):
@@ -234,7 +245,7 @@ class PyQtCrypt(QSystemTrayIcon):
 				file.write(decrypted_data)
 	
 	def write_zip_backup(self):
-		with ZipFile('encrypted_files.old.zip','w') as archive:
+		with ZipFile("{0}.old.zip".format(self.CRYPT_DIR),'w') as archive:
 			for path, filename in list_files(self.CRYPT_DIR):
 				archive.write(os.path.join(os.path.relpath(self.CRYPT_DIR), path, filename))
 
