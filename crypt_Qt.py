@@ -15,7 +15,6 @@ Description:
      - Directory trees are encrypted as one name, e.g. foo/bar/baz -> gAAAAABfPsVy...
        - Number of subdirectories is hidden
        - Unfortunately, this puts stricter constraints on the length of file names
-   - Empty directories are not saved, though this can easily be done
 
 
 TODO
@@ -44,7 +43,8 @@ def gen_key():
 def list_files(directory):
 	files = []
 	for (dirpath, subdirs, filenames) in os.walk(directory):
-		files.extend([[os.path.relpath(dirpath, start=directory), f] for f in filenames]) # Note: this only saves directories with files
+		for f in filenames: files.append([os.path.relpath(dirpath, start=directory), f])
+		else: files.append([os.path.relpath(dirpath, start=directory), '']) # Include empty directories
 	return files
 
 def show_info_dialog(icon, title, text):
@@ -204,30 +204,32 @@ class PyQtCrypt(QSystemTrayIcon):
 	def encrypt(self):
 		f = Fernet(self.KEY)
 		for path, filename in list_files(self.PLAIN_DIR):
+			if path == '.': encrypted_path=path
+			else: encrypted_path = f.encrypt(path.encode()).decode()
+			if not os.path.isdir(os.path.join(self.CRYPT_DIR, encrypted_path)): os.makedirs(os.path.join(self.CRYPT_DIR, encrypted_path))
+			if filename == '': continue
 			with open(os.path.join(self.PLAIN_DIR, path, filename), "rb") as file:
 				file_data = file.read()
 			encrypted_data = f.encrypt(file_data)
-			if path == '.': encrypted_path=path
-			else: encrypted_path = f.encrypt(path.encode()).decode()
 			encrypted_filename = f.encrypt(filename.encode()).decode()
-			if not os.path.isdir(os.path.join(self.CRYPT_DIR, encrypted_path)): os.makedirs(os.path.join(self.CRYPT_DIR, encrypted_path))
 			with open(os.path.join(self.CRYPT_DIR, encrypted_path, encrypted_filename), "wb") as file:
 				file.write(encrypted_data)
 
 	def decrypt(self):
 		f = Fernet(self.KEY)
 		for path, filename in list_files(self.CRYPT_DIR):
-			with open(os.path.join(self.CRYPT_DIR, path, filename), "rb") as file:
-				encrypted_data = file.read()
 			try:
-				decrypted_data = f.decrypt(encrypted_data)
 				if path == '.': decrypted_path=path
 				else: decrypted_path = f.decrypt(path.encode()).decode()
+				if not os.path.isdir(os.path.join(self.PLAIN_DIR, decrypted_path)): os.makedirs(os.path.join(self.PLAIN_DIR, decrypted_path))
+				if filename == '': continue
+				with open(os.path.join(self.CRYPT_DIR, path, filename), "rb") as file:
+					encrypted_data = file.read()
+				decrypted_data = f.decrypt(encrypted_data)
 				decrypted_filename = f.decrypt(filename.encode()).decode()
 			except InvalidToken:
 				show_info_dialog(QMessageBox.Critical, "Incorrect key!", "The provided password/keyfile is invalid.")
 				sys.exit(1)
-			if not os.path.isdir(os.path.join(self.PLAIN_DIR, decrypted_path)): os.makedirs(os.path.join(self.PLAIN_DIR, decrypted_path))
 			with open(os.path.join(self.PLAIN_DIR, decrypted_path, decrypted_filename), "wb") as file:
 				file.write(decrypted_data)
 	
