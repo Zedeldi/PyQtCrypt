@@ -116,7 +116,7 @@ class SettingsDialog(QDialog):
 		keyfile = QFileDialog.getOpenFileName(self, "Open keyfile")[0]
 		try: self.key=open(keyfile, "rb").read()
 		except OSError: self.key=None
-		self.return_prefs()
+		self.text_pass.setText(self.key.decode())
 	
 	def read_cryptdir(self): self.cryptdir=get_directory("Select Encrypted Directory")
 	
@@ -145,6 +145,8 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.PLAIN_DIR=os.path.abspath("plain_dir")
 		self.OPEN_GUI=False
 		
+		self.is_mounted=False
+		
 		self.set_prefs()
 		if self.KEY == None: sys.exit(1) # No key received, cancelled
 		
@@ -167,7 +169,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		menu.addAction(settings_action)
 		menu.addSeparator()
 		quit_action=QAction("Quit", self)
-		quit_action.triggered.connect(lambda: sys.exit(0))
+		quit_action.triggered.connect(self.quit)
 		menu.addAction(quit_action)
 		return menu
 	
@@ -179,18 +181,28 @@ class PyQtCrypt(QSystemTrayIcon):
 	
 	def set_prefs(self):
 		if (prefs := SettingsDialog.get_prefs()):
-			if prefs["key"]: self.KEY=prefs["key"]
+			if self.is_mounted:
+				was_mounted=True
+				self.unmount()
+			else: was_mounted=False
+			if prefs["key"]:
+				try: f=Fernet(prefs["key"])
+				except:
+					show_info_dialog(QMessageBox.Critical, "Invalid key!", "The provided password/keyfile is invalid.")
+					sys.exit(1)
+				self.KEY=prefs["key"]
 			if prefs["cryptdir"]: self.CRYPT_DIR=prefs["cryptdir"]
 			if prefs["plaindir"]: self.PLAIN_DIR=prefs["plaindir"]
 			if prefs["drive_letter"]: self.DRIVE_LETTER=prefs["drive_letter"]
+			if was_mounted: self.mount()
 	
 	def toggle_mount(self):
-		if os.path.isdir(self.PLAIN_DIR):
-			self.unmount()
-			self.toggle_mount_action.setText("Mount")
-		else:
-			self.mount()
-			self.toggle_mount_action.setText("Unmount")
+		if self.is_mounted: self.unmount()
+		else: self.mount()
+	
+	def quit(self):
+		if self.is_mounted: self.unmount()
+		sys.exit(0)
 	
 	def mount(self):
 		if not os.path.isdir(self.CRYPT_DIR): os.makedirs(self.CRYPT_DIR)
@@ -202,6 +214,8 @@ class PyQtCrypt(QSystemTrayIcon):
 		if self.OPEN_GUI:
 			try: webbrowser.open(self.DRIVE_LETTER)
 			except NameError: webbrowser.open(self.PLAIN_DIR)
+		self.is_mounted=True
+		self.toggle_mount_action.setText("Unmount")
 
 	def unmount(self):
 		if os.name == 'nt' and os.path.exists(self.DRIVE_LETTER): os.system("subst {0} /d".format(self.DRIVE_LETTER))
@@ -210,6 +224,8 @@ class PyQtCrypt(QSystemTrayIcon):
 		os.makedirs(self.CRYPT_DIR)
 		self.encrypt()
 		shutil.rmtree(self.PLAIN_DIR)
+		self.is_mounted=False
+		self.toggle_mount_action.setText("Mount")
 	
 	## Helper functions ##
 	def encrypt(self):
@@ -239,7 +255,7 @@ class PyQtCrypt(QSystemTrayIcon):
 				decrypted_data = f.decrypt(encrypted_data)
 				decrypted_filename = f.decrypt(filename.encode()).decode()
 			except InvalidToken:
-				show_info_dialog(QMessageBox.Critical, "Incorrect key!", "The provided password/keyfile is invalid.")
+				show_info_dialog(QMessageBox.Critical, "Incorrect key!", "The provided password/keyfile is incorrect.")
 				sys.exit(1)
 			with open(os.path.join(self.PLAIN_DIR, decrypted_path, decrypted_filename), "wb") as file:
 				file.write(decrypted_data)
