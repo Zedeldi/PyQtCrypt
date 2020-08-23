@@ -256,6 +256,7 @@ class PyQtCrypt(QSystemTrayIcon):
 				decrypted_filename = f.decrypt(filename.encode()).decode()
 			except InvalidToken:
 				show_info_dialog(QMessageBox.Critical, "Incorrect key!", "The provided password/keyfile is incorrect.")
+				if os.path.isdir(self.PLAIN_DIR): shutil.rmtree(self.PLAIN_DIR) # Cleanup
 				sys.exit(1)
 			with open(os.path.join(self.PLAIN_DIR, decrypted_path, decrypted_filename), "wb") as file:
 				file.write(decrypted_data)
