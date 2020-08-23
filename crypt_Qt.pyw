@@ -1,9 +1,4 @@
-import base64, hashlib, os, random, shutil, string, sys, webbrowser
-from cryptography.fernet import Fernet, InvalidToken
-from PyQt5.QtCore import *
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import *
-from zipfile import ZipFile
+#!/usr/bin/env python3
 
 """
 
@@ -29,6 +24,14 @@ Add logging, argparse
 Watchdog
 
 """
+
+import base64, hashlib, os, random, shutil, string, sys, webbrowser
+from zipfile import ZipFile
+
+from cryptography.fernet import Fernet, InvalidToken
+from PyQt5.QtCore import *
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import *
 
 def gen_key():
 	filename=''.join(random.choice(string.ascii_uppercase) for _ in range(8))+".key"
