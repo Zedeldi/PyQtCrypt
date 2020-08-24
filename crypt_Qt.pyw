@@ -14,14 +14,8 @@ Description:
 
 TODO
 ----
-Re-write using Qt
- - Export helper functions to utils.py, and pass args
- - Tidy classes
-   - Merge settings with main class?
-
-Add logging, argparse
-
-Watchdog
+Implement watchdog -> execute encrypt() on mountpoint modification
+ - https://github.com/gorakhargosh/watchdog
 
 """
 
@@ -144,7 +138,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		
 		## Default settings ##
 		self.KEY=None
-		self.CRYPT_DIR=os.path.abspath("crypt_dir")
+		self.CRYPT_DIR=os.path.abspath(".crypt_dir")
 		self.PLAIN_DIR=os.path.abspath("plain_dir")
 		self.OPEN_GUI=False
 		
@@ -208,8 +202,12 @@ class PyQtCrypt(QSystemTrayIcon):
 		sys.exit(0)
 	
 	def mount(self):
-		if not os.path.isdir(self.CRYPT_DIR): os.makedirs(self.CRYPT_DIR)
-		if not os.path.isdir(self.PLAIN_DIR): os.makedirs(self.PLAIN_DIR)
+		try:
+			if not os.path.isdir(self.CRYPT_DIR): os.makedirs(self.CRYPT_DIR)
+			if not os.path.isdir(self.PLAIN_DIR): os.makedirs(self.PLAIN_DIR)
+		except FileExistsError:
+			show_info_dialog(QMessageBox.Critical, "File Exists!", "The provided directory / mountpoint is a file.")
+			sys.exit(1)
 		self.decrypt()
 		if os.name == 'nt':
 			if os.path.exists(self.DRIVE_LETTER): os.system("subst {0} /d".format(self.DRIVE_LETTER))
