@@ -65,6 +65,7 @@ class SettingsDialog(QDialog):
 		self.drive_letter = None
 		
 		self.setWindowTitle("PyQt Crypt - Settings")
+		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon("briefcase.svg")))
 		self.resize(300, 100)
 		
 		self.text_pass = QLineEdit(self)
@@ -103,17 +104,17 @@ class SettingsDialog(QDialog):
 			self.set_drive_letter()
 	
 	def read_password(self):
-		if self.text_pass.text() == "":
-			self.key, filename=gen_key()
-			show_info_dialog(QMessageBox.Information, "Keyfile Saved", "Your keyfile has been saved at {0}.".format(filename))
-		else: self.key=base64.urlsafe_b64encode(hashlib.sha256(self.text_pass.text().encode()).digest())
+		if self.text_pass.text() != "": self.key=base64.urlsafe_b64encode(hashlib.sha256(self.text_pass.text().encode()).digest())
 		self.return_prefs()
 	
 	def read_keyfile(self):
 		keyfile = QFileDialog.getOpenFileName(self, "Open keyfile")[0]
-		try: self.key=open(keyfile, "rb").read()
+		try:
+			self.key=open(keyfile, "rb").read()
+			self.text_pass.setEchoMode(QLineEdit.Normal)
+			self.text_pass.setReadOnly(True)
+			self.text_pass.setText(os.path.basename(keyfile))
 		except OSError: self.key=None
-		self.text_pass.setText(self.key.decode())
 	
 	def read_cryptdir(self): self.cryptdir=get_directory("Select Encrypted Directory")
 	
@@ -123,14 +124,16 @@ class SettingsDialog(QDialog):
 		self.drive_letter=self.drive_letter_selector.currentText()
 	
 	def return_prefs(self):
+		if not self.key and self.text_pass.text() == "":
+			self.key, filename=gen_key()
+			show_info_dialog(QMessageBox.Information, "Keyfile Saved", "Your keyfile has been saved at {0}.".format(filename))
 		self.accept()
 		return {"key": self.key, "cryptdir": self.cryptdir, "plaindir": self.plaindir, "drive_letter": self.drive_letter}
 
 	@staticmethod
 	def get_prefs():
 		dialog = SettingsDialog()
-		dialog.exec_()
-		return dialog.return_prefs()
+		if dialog.exec_(): return dialog.return_prefs()
 
 class PyQtCrypt(QSystemTrayIcon):
 	def __init__(self):
@@ -151,7 +154,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.mount()
 	
 	def initUI(self):
-		self.setIcon(QIcon("briefcase.svg"))
+		self.setIcon(QIcon.fromTheme("folder", QIcon("briefcase.svg")))
 		self.setVisible(True)
 		self.setContextMenu(self.build_menu())
 		self.activated.connect(self.on_activated)
