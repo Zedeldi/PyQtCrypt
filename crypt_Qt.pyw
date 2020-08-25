@@ -34,6 +34,18 @@ def gen_key():
 		key_file.write(key)
 	return key, filename
 
+def shred_file(filepath, iterations):
+	f_size=os.path.getsize(filepath)
+	try:
+		with open(filepath, 'wb') as f:
+			for i in range(iterations):
+				f.seek(0)
+				f.write(os.urandom(f_size))
+		random_filename=''.join(random.choice(string.ascii_letters+string.digits) for _ in range(8))
+		os.rename(filepath, os.path.join(os.path.dirname(filepath), random_filename))
+		return random_filename
+	except OSError: pass # Probably no write permission (follows symlinks), or extremely small chance of file name conflict - ignore
+
 def list_files(directory):
 	files = []
 	for (dirpath, subdirs, filenames) in os.walk(directory):
@@ -62,31 +74,47 @@ class SettingsDialog(QDialog):
 		self.key = None
 		self.cryptdir = None
 		self.plaindir = None
+		self.shred = False
+		self.shred_iterations = 1
 		self.drive_letter = None
 		
 		self.setWindowTitle("PyQt Crypt - Settings")
 		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon("briefcase.svg")))
-		self.resize(300, 100)
+		self.resize(600, 100)
 		
+		## Widgets ##
 		self.text_pass = QLineEdit(self)
 		self.text_pass.setPlaceholderText("Password (leave blank to generate)")
 		self.text_pass.setEchoMode(QLineEdit.Password)
 		self.button_keyfile = QPushButton("Keyfile", self)
 		self.button_cryptdir = QPushButton("Directory", self)
 		self.button_plaindir = QPushButton("Mountpoint", self)
+		self.checkbox_shred = QCheckBox("Shred", self)
+		self.checkbox_shred.setChecked(self.shred)
+		self.spinbox_shred_iterations = QSpinBox(self)
+		self.spinbox_shred_iterations.setRange(1, 20)
+		self.spinbox_shred_iterations.setPrefix("Level: ")
+		if not self.shred: self.spinbox_shred_iterations.hide()
 		self.button_submit = QPushButton("Submit", self)
+		
+		## Actions ##
 		self.text_pass.returnPressed.connect(self.read_password)
 		self.button_keyfile.clicked.connect(self.read_keyfile)
 		self.button_cryptdir.clicked.connect(self.read_cryptdir)
 		self.button_plaindir.clicked.connect(self.read_plaindir)
+		self.checkbox_shred.stateChanged.connect(self.read_shred)
+		self.spinbox_shred_iterations.valueChanged.connect(self.read_shred_iterations)
 		self.button_submit.clicked.connect(self.return_prefs)
 		
+		## Layout ##
 		self.main_layout = QVBoxLayout()
 		self.opt_layout = QHBoxLayout()
 		
 		self.opt_layout.addWidget(self.button_keyfile)
 		self.opt_layout.addWidget(self.button_cryptdir)
 		self.opt_layout.addWidget(self.button_plaindir)
+		self.opt_layout.addWidget(self.checkbox_shred)
+		self.opt_layout.addWidget(self.spinbox_shred_iterations)
 		
 		self.main_layout.addWidget(self.text_pass)
 		self.main_layout.addLayout(self.opt_layout)
@@ -120,6 +148,16 @@ class SettingsDialog(QDialog):
 	
 	def read_plaindir(self): self.plaindir=get_directory("Select Mountpoint")
 	
+	def read_shred(self):
+		if self.checkbox_shred.isChecked():
+			self.shred=True
+			self.spinbox_shred_iterations.show()
+		else:
+			self.shred=False
+			self.spinbox_shred_iterations.hide()
+	
+	def read_shred_iterations(self): self.shred_iterations=self.spinbox_shred_iterations.value()
+	
 	def set_drive_letter(self):
 		self.drive_letter=self.drive_letter_selector.currentText()
 	
@@ -128,7 +166,10 @@ class SettingsDialog(QDialog):
 			self.key, filename=gen_key()
 			show_info_dialog(QMessageBox.Information, "Keyfile Saved", "Your keyfile has been saved at {0}.".format(filename))
 		self.accept()
-		return {"key": self.key, "cryptdir": self.cryptdir, "plaindir": self.plaindir, "drive_letter": self.drive_letter}
+		return {"key": self.key, 
+			"cryptdir": self.cryptdir, "plaindir": self.plaindir, 
+			"shred": self.shred, "shred_iterations": self.shred_iterations, 
+			"drive_letter": self.drive_letter}
 
 	@staticmethod
 	def get_prefs():
@@ -143,6 +184,8 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.KEY=None
 		self.CRYPT_DIR=os.path.abspath(".crypt_dir")
 		self.PLAIN_DIR=os.path.abspath("plain_dir")
+		self.SHRED=False
+		self.SHRED_ITERATIONS=1
 		self.OPEN_GUI=False
 		
 		self.is_mounted=False
@@ -186,13 +229,16 @@ class PyQtCrypt(QSystemTrayIcon):
 				self.unmount()
 			else: was_mounted=False
 			if prefs["key"]:
-				try: f=Fernet(prefs["key"])
+				try:
+					f=Fernet(prefs["key"])
+					self.KEY=prefs["key"]
 				except:
 					show_info_dialog(QMessageBox.Critical, "Invalid key!", "The provided password/keyfile is invalid.")
 					sys.exit(1)
-				self.KEY=prefs["key"]
 			if prefs["cryptdir"]: self.CRYPT_DIR=prefs["cryptdir"]
 			if prefs["plaindir"]: self.PLAIN_DIR=prefs["plaindir"]
+			self.SHRED=prefs["shred"] # True/False
+			self.SHRED_ITERATIONS=prefs["shred_iterations"]
 			if prefs["drive_letter"]: self.DRIVE_LETTER=prefs["drive_letter"]
 			if was_mounted: self.mount()
 	
@@ -245,6 +291,7 @@ class PyQtCrypt(QSystemTrayIcon):
 			encrypted_filename = f.encrypt(filename.encode()).decode()
 			with open(os.path.join(self.CRYPT_DIR, encrypted_path, encrypted_filename), "wb") as file:
 				file.write(encrypted_data)
+			if self.SHRED: shred_file(os.path.join(self.PLAIN_DIR, path, filename), self.SHRED_ITERATIONS)
 
 	def decrypt(self):
 		f = Fernet(self.KEY)
