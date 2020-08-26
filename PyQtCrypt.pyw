@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 
-"""
+# PyQtCrypt.pyw
+# Copyright (C) 2020  Zack Didcott
 
-Description:
- - Encryption:
-   - Only one file per directory
-     - Prevents guessing what each directory contains
-   - File & directory names are encrypted
-     - Directory trees are encrypted as one name, e.g. foo/bar/baz -> gAAAAABfPsVy...
-       - Number of subdirectories is hidden
-       - Unfortunately, this puts stricter constraints on the length of file names
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-TODO
-----
-Implement watchdog -> execute encrypt() on mountpoint modification
- - https://github.com/gorakhargosh/watchdog
-
-"""
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import base64, hashlib, os, random, shutil, string, sys, webbrowser
 from zipfile import ZipFile
@@ -53,6 +50,7 @@ def list_files(directory):
 		else: files.append([os.path.relpath(dirpath, start=directory), '']) # Include empty directories
 	return files
 
+## Qt functions ##
 def show_info_dialog(icon, title, text):
 	msg_box = QMessageBox()
 	msg_box.setIcon(icon)
@@ -78,8 +76,9 @@ class SettingsDialog(QDialog):
 		self.shred_iterations = 1
 		self.drive_letter = None
 		
-		self.setWindowTitle("PyQt Crypt - Settings")
-		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon("briefcase.svg")))
+		self.setWindowTitle("PyQtCrypt - Settings")
+		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon(fallback_icon)))
+		self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
 		self.resize(600, 100)
 		
 		## Widgets ##
@@ -181,12 +180,13 @@ class PyQtCrypt(QSystemTrayIcon):
 		super().__init__()
 		
 		## Default settings ##
+		self.ABOUT_URL="https://github.com/Zedeldi/PyQtCrypt"
 		self.KEY=None
-		self.CRYPT_DIR=os.path.abspath(".crypt_dir")
-		self.PLAIN_DIR=os.path.abspath("plain_dir")
+		self.CRYPT_DIR=os.path.abspath(".PyQtCrypt_Data")
+		self.PLAIN_DIR=os.path.abspath("PyQtCrypt_Data")
 		self.SHRED=False
 		self.SHRED_ITERATIONS=1
-		self.OPEN_GUI=False
+		self.OPEN_GUI=True
 		
 		self.is_mounted=False
 		
@@ -197,7 +197,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.mount()
 	
 	def initUI(self):
-		self.setIcon(QIcon.fromTheme("folder", QIcon("briefcase.svg")))
+		self.setIcon(QIcon.fromTheme("folder", QIcon(fallback_icon)))
 		self.setVisible(True)
 		self.setContextMenu(self.build_menu())
 		self.activated.connect(self.on_activated)
@@ -210,6 +210,9 @@ class PyQtCrypt(QSystemTrayIcon):
 		settings_action=QAction("Settings", self)
 		settings_action.triggered.connect(self.set_prefs)
 		menu.addAction(settings_action)
+		about_action=QAction("About", self)
+		about_action.triggered.connect(self.about)
+		menu.addAction(about_action)
 		menu.addSeparator()
 		quit_action=QAction("Quit", self)
 		quit_action.triggered.connect(self.quit)
@@ -246,6 +249,8 @@ class PyQtCrypt(QSystemTrayIcon):
 		if self.is_mounted: self.unmount()
 		else: self.mount()
 	
+	def about(self): webbrowser.open(self.ABOUT_URL, new=2, autoraise=True)
+	
 	def quit(self):
 		if self.is_mounted: self.unmount()
 		sys.exit(0)
@@ -263,7 +268,7 @@ class PyQtCrypt(QSystemTrayIcon):
 			os.system("subst {0} {1}".format(self.DRIVE_LETTER, self.PLAIN_DIR))
 		if self.OPEN_GUI:
 			try: webbrowser.open(self.DRIVE_LETTER)
-			except NameError: webbrowser.open(self.PLAIN_DIR)
+			except AttributeError: webbrowser.open(self.PLAIN_DIR)
 		self.is_mounted=True
 		self.toggle_mount_action.setText("Unmount")
 
@@ -318,6 +323,8 @@ class PyQtCrypt(QSystemTrayIcon):
 				archive.write(os.path.join(os.path.relpath(self.CRYPT_DIR), path, filename))
 
 if __name__ == "__main__":
+	bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__))) # In case bundled with PyInstaller, see https://pyinstaller.readthedocs.io/en/stable/runtime-information.html
+	fallback_icon = os.path.abspath(os.path.join(bundle_dir, "assets", "briefcase.svg"))
 	app = QApplication(sys.argv)
 	app.setQuitOnLastWindowClosed(False)
 	window = PyQtCrypt()
