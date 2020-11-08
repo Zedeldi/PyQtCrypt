@@ -20,9 +20,17 @@ import base64, hashlib, os, random, shutil, string, sys, webbrowser
 from zipfile import ZipFile
 
 from cryptography.fernet import Fernet, InvalidToken
-from PyQt5.QtCore import *
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import (
+	QApplication, QSystemTrayIcon, QDialog, QMessageBox,
+	QFileDialog, QMenu, QAction, QLineEdit,
+	QPushButton, QCheckBox, QSpinBox, QComboBox,
+	QVBoxLayout, QHBoxLayout
+)
+
+BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__))) # In case bundled with PyInstaller, see https://pyinstaller.readthedocs.io/en/stable/runtime-information.html
+FALLBACK_ICON = os.path.abspath(os.path.join(BUNDLE_DIR, "assets", "briefcase.svg"))
 
 def gen_key():
 	filename=''.join(random.choice(string.ascii_uppercase) for _ in range(8))+".key"
@@ -77,7 +85,7 @@ class SettingsDialog(QDialog):
 		self.drive_letter = None
 		
 		self.setWindowTitle("PyQtCrypt - Settings")
-		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon(fallback_icon)))
+		self.setWindowIcon(QIcon.fromTheme("preferences-system", QIcon(FALLBACK_ICON)))
 		self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
 		self.resize(600, 100)
 		
@@ -197,7 +205,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.mount()
 	
 	def initUI(self):
-		self.setIcon(QIcon.fromTheme("folder", QIcon(fallback_icon)))
+		self.setIcon(QIcon.fromTheme("folder", QIcon(FALLBACK_ICON)))
 		self.setVisible(True)
 		self.setContextMenu(self.build_menu())
 		self.activated.connect(self.on_activated)
@@ -323,8 +331,6 @@ class PyQtCrypt(QSystemTrayIcon):
 				archive.write(os.path.join(os.path.relpath(self.CRYPT_DIR), path, filename))
 
 if __name__ == "__main__":
-	bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__))) # In case bundled with PyInstaller, see https://pyinstaller.readthedocs.io/en/stable/runtime-information.html
-	fallback_icon = os.path.abspath(os.path.join(bundle_dir, "assets", "briefcase.svg"))
 	app = QApplication(sys.argv)
 	app.setQuitOnLastWindowClosed(False)
 	window = PyQtCrypt()
