@@ -33,20 +33,20 @@ BUNDLE_DIR = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__))
 FALLBACK_ICON = os.path.abspath(os.path.join(BUNDLE_DIR, "assets", "briefcase.svg"))
 
 def gen_key():
-	filename=''.join(random.choice(string.ascii_uppercase) for _ in range(8))+".key"
+	filename = ''.join(random.choice(string.ascii_uppercase) for _ in range(8)) + ".key"
 	key = Fernet.generate_key()
 	with open(filename, "wb") as key_file:
 		key_file.write(key)
 	return key, filename
 
 def shred_file(filepath, iterations):
-	f_size=os.path.getsize(filepath)
+	f_size = os.path.getsize(filepath)
 	try:
 		with open(filepath, 'wb') as f:
 			for i in range(iterations):
 				f.seek(0)
 				f.write(os.urandom(f_size))
-		random_filename=''.join(random.choice(string.ascii_letters+string.digits) for _ in range(8))
+		random_filename = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
 		os.rename(filepath, os.path.join(os.path.dirname(filepath), random_filename))
 		return random_filename
 	except OSError: pass # Probably no write permission (follows symlinks), or extremely small chance of file name conflict - ignore
@@ -132,45 +132,46 @@ class SettingsDialog(QDialog):
 		## Windows only ##
 		if os.name == 'nt':
 			self.drive_letter_selector = QComboBox()
-			self.drive_letter_selector.addItems(map(lambda l : l + ':', list(string.ascii_lowercase)))
+			self.drive_letter_selector.addItems(map(lambda l: l + ':', list(string.ascii_lowercase)))
 			self.drive_letter_selector.setCurrentIndex(25)
 			self.drive_letter_selector.currentIndexChanged.connect(self.set_drive_letter)
 			self.opt_layout.addWidget(self.drive_letter_selector)
 			self.set_drive_letter()
 	
 	def read_password(self):
-		if self.text_pass.text() != "": self.key=base64.urlsafe_b64encode(hashlib.sha256(self.text_pass.text().encode()).digest())
+		if self.text_pass.text() != "":
+			self.key = base64.urlsafe_b64encode(hashlib.sha256(self.text_pass.text().encode()).digest())
 		self.return_prefs()
 	
 	def read_keyfile(self):
 		keyfile = QFileDialog.getOpenFileName(self, "Open keyfile")[0]
 		try:
-			self.key=open(keyfile, "rb").read()
+			self.key = open(keyfile, "rb").read()
 			self.text_pass.setEchoMode(QLineEdit.Normal)
 			self.text_pass.setReadOnly(True)
 			self.text_pass.setText(os.path.basename(keyfile))
-		except OSError: self.key=None
+		except OSError: self.key = None
 	
-	def read_cryptdir(self): self.cryptdir=get_directory("Select Encrypted Directory")
+	def read_cryptdir(self): self.cryptdir = get_directory("Select Encrypted Directory")
 	
-	def read_plaindir(self): self.plaindir=get_directory("Select Mountpoint")
+	def read_plaindir(self): self.plaindir = get_directory("Select Mountpoint")
 	
 	def read_shred(self):
 		if self.checkbox_shred.isChecked():
-			self.shred=True
+			self.shred = True
 			self.spinbox_shred_iterations.show()
 		else:
-			self.shred=False
+			self.shred = False
 			self.spinbox_shred_iterations.hide()
 	
-	def read_shred_iterations(self): self.shred_iterations=self.spinbox_shred_iterations.value()
+	def read_shred_iterations(self): self.shred_iterations = self.spinbox_shred_iterations.value()
 	
 	def set_drive_letter(self):
-		self.drive_letter=self.drive_letter_selector.currentText()
+		self.drive_letter = self.drive_letter_selector.currentText()
 	
 	def return_prefs(self):
 		if not self.key and self.text_pass.text() == "":
-			self.key, filename=gen_key()
+			self.key, filename = gen_key()
 			show_info_dialog(QMessageBox.Information, "Keyfile Saved", "Your keyfile has been saved at {0}.".format(filename))
 		self.accept()
 		return {"key": self.key, 
@@ -188,15 +189,15 @@ class PyQtCrypt(QSystemTrayIcon):
 		super().__init__()
 		
 		## Default settings ##
-		self.ABOUT_URL="https://github.com/Zedeldi/PyQtCrypt"
-		self.KEY=None
-		self.CRYPT_DIR=os.path.abspath(".PyQtCrypt_Data")
-		self.PLAIN_DIR=os.path.abspath("PyQtCrypt_Data")
-		self.SHRED=False
-		self.SHRED_ITERATIONS=1
-		self.OPEN_GUI=True
+		self.ABOUT_URL = "https://github.com/Zedeldi/PyQtCrypt"
+		self.KEY = None
+		self.CRYPT_DIR = os.path.abspath(".PyQtCrypt_Data")
+		self.PLAIN_DIR = os.path.abspath("PyQtCrypt_Data")
+		self.SHRED = False
+		self.SHRED_ITERATIONS = 1
+		self.OPEN_GUI = True
 		
-		self.is_mounted=False
+		self.is_mounted = False
 		
 		self.set_prefs()
 		if self.KEY == None: sys.exit(1) # No key received, cancelled
@@ -211,18 +212,18 @@ class PyQtCrypt(QSystemTrayIcon):
 		self.activated.connect(self.on_activated)
 		
 	def build_menu(self):
-		menu=QMenu()
-		self.toggle_mount_action=QAction("Unmount", self)
+		menu = QMenu()
+		self.toggle_mount_action = QAction("Unmount", self)
 		self.toggle_mount_action.triggered.connect(self.toggle_mount)
 		menu.addAction(self.toggle_mount_action)
-		settings_action=QAction("Settings", self)
+		settings_action = QAction("Settings", self)
 		settings_action.triggered.connect(self.set_prefs)
 		menu.addAction(settings_action)
-		about_action=QAction("About", self)
+		about_action = QAction("About", self)
 		about_action.triggered.connect(self.about)
 		menu.addAction(about_action)
 		menu.addSeparator()
-		quit_action=QAction("Quit", self)
+		quit_action = QAction("Quit", self)
 		quit_action.triggered.connect(self.quit)
 		menu.addAction(quit_action)
 		return menu
@@ -236,21 +237,21 @@ class PyQtCrypt(QSystemTrayIcon):
 	def set_prefs(self):
 		if (prefs := SettingsDialog.get_prefs()):
 			if self.is_mounted:
-				was_mounted=True
+				was_mounted = True
 				self.unmount()
-			else: was_mounted=False
+			else: was_mounted = False
 			if prefs["key"]:
 				try:
-					f=Fernet(prefs["key"])
-					self.KEY=prefs["key"]
-				except:
+					f = Fernet(prefs["key"])
+					self.KEY = prefs["key"]
+				except InvalidToken:
 					show_info_dialog(QMessageBox.Critical, "Invalid key!", "The provided password/keyfile is invalid.")
 					sys.exit(1)
-			if prefs["cryptdir"]: self.CRYPT_DIR=prefs["cryptdir"]
-			if prefs["plaindir"]: self.PLAIN_DIR=prefs["plaindir"]
-			self.SHRED=prefs["shred"] # True/False
-			self.SHRED_ITERATIONS=prefs["shred_iterations"]
-			if prefs["drive_letter"]: self.DRIVE_LETTER=prefs["drive_letter"]
+			if prefs["cryptdir"]: self.CRYPT_DIR = prefs["cryptdir"]
+			if prefs["plaindir"]: self.PLAIN_DIR = prefs["plaindir"]
+			self.SHRED = prefs["shred"] # True/False
+			self.SHRED_ITERATIONS = prefs["shred_iterations"]
+			if prefs["drive_letter"]: self.DRIVE_LETTER = prefs["drive_letter"]
 			if was_mounted: self.mount()
 	
 	def toggle_mount(self):
@@ -277,7 +278,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		if self.OPEN_GUI:
 			try: webbrowser.open(self.DRIVE_LETTER)
 			except AttributeError: webbrowser.open(self.PLAIN_DIR)
-		self.is_mounted=True
+		self.is_mounted = True
 		self.toggle_mount_action.setText("Unmount")
 
 	def unmount(self):
@@ -287,14 +288,14 @@ class PyQtCrypt(QSystemTrayIcon):
 		os.makedirs(self.CRYPT_DIR)
 		self.encrypt()
 		shutil.rmtree(self.PLAIN_DIR)
-		self.is_mounted=False
+		self.is_mounted = False
 		self.toggle_mount_action.setText("Mount")
 	
 	## Helper functions ##
 	def encrypt(self):
 		f = Fernet(self.KEY)
 		for path, filename in list_files(self.PLAIN_DIR):
-			if path == '.': encrypted_path=path
+			if path == '.': encrypted_path = path
 			else: encrypted_path = f.encrypt(path.encode()).decode()
 			if not os.path.isdir(os.path.join(self.CRYPT_DIR, encrypted_path)): os.makedirs(os.path.join(self.CRYPT_DIR, encrypted_path))
 			if filename == '': continue
@@ -310,7 +311,7 @@ class PyQtCrypt(QSystemTrayIcon):
 		f = Fernet(self.KEY)
 		for path, filename in list_files(self.CRYPT_DIR):
 			try:
-				if path == '.': decrypted_path=path
+				if path == '.': decrypted_path = path
 				else: decrypted_path = f.decrypt(path.encode()).decode()
 				if not os.path.isdir(os.path.join(self.PLAIN_DIR, decrypted_path)): os.makedirs(os.path.join(self.PLAIN_DIR, decrypted_path))
 				if filename == '': continue
