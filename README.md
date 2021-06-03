@@ -1,6 +1,6 @@
 # PyQtCrypt
 
-[![GitHub license](https://img.shields.io/github/license/Zedeldi/PyQtCrypt?style=flat-square)](https://github.com/Zedeldi/PyQtCrypt/blob/master/LICENSE) [![GitHub last commit](https://img.shields.io/github/last-commit/Zedeldi/PyQtCrypt?style=flat-square)](https://github.com/Zedeldi/PyQtCrypt/commits)
+[![GitHub license](https://img.shields.io/github/license/Zedeldi/PyQtCrypt?style=flat-square)](https://github.com/Zedeldi/PyQtCrypt/blob/master/LICENSE) [![GitHub last commit](https://img.shields.io/github/last-commit/Zedeldi/PyQtCrypt?style=flat-square)](https://github.com/Zedeldi/PyQtCrypt/commits) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 
 Cross-platform PyQt5 application, providing an [EncFS](https://github.com/vgough/encfs)-like method for file-based encryption.
 
